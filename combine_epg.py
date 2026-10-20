@@ -4,6 +4,10 @@ import xml.etree.ElementTree as ET
 
 # Diccionario con tus fuentes corregidas y sus nombres identificadores
 EPG_SOURCES = {
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "Spain football&Tv",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "latam strong8k",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg37.xml.gz": "US SPORTS",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "US|CAN|UK SPORTS & LIVE",
     "https://www.open-epg.com/files/argentina.xml.gz": "argentina.xml.gz",
     "https://www.open-epg.com/files/bolivia.xml.gz": "bolivia.xml.gz",
     "https://www.open-epg.com/files/canada.xml.gz": "canada.xml.gz",
@@ -42,10 +46,7 @@ EPG_SOURCES = {
     "https://www.open-epg.com/files/unitedstates9.xml.gz": "unitedstates9.xml.gz",
     "https://www.open-epg.com/files/uruguay.xml.gz": "uruguay.xml.gz",
     "https://www.open-epg.com/files/venezuela1.xml.gz": "venezuela1.xml.gz",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "Spain football&Tv",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "latam strong8k",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg37.xml.gz": "US SPORTS"
-}
+    }
 
 def fetch_and_parse(url):
     try:
