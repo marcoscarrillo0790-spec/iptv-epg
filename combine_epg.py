@@ -2,12 +2,8 @@ import gzip
 import requests
 import xml.etree.ElementTree as ET
 
-# Diccionario con tus fuentes corregidas y sus nombres identificadores
+# Diccionario con tus fuentes corregidas (Comillas dobles extra solucionadas)
 EPG_SOURCES = {
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "Spain football&Tv",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "latam strong8k",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg37.xml.gz": "US SPORTS",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "US|CAN|UK SPORTS & LIVE",
     "https://www.open-epg.com/files/argentina.xml.gz": "argentina.xml.gz",
     "https://www.open-epg.com/files/bolivia.xml.gz": "bolivia.xml.gz",
     "https://www.open-epg.com/files/canada.xml.gz": "canada.xml.gz",
@@ -46,16 +42,28 @@ EPG_SOURCES = {
     "https://www.open-epg.com/files/unitedstates9.xml.gz": "unitedstates9.xml.gz",
     "https://www.open-epg.com/files/uruguay.xml.gz": "uruguay.xml.gz",
     "https://www.open-epg.com/files/venezuela1.xml.gz": "venezuela1.xml.gz",
-    }
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "Spain football&Tv",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "latam strong8k",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg37.xml.gz": "US SPORTS",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "US_CAN_UK_SPORTS_AND_LIVE"
+}
 
 def fetch_and_parse(url):
     try:
-        response = requests.get(url, timeout=30)
-        # Si la URL termina en .gz, descomprimimos
-        if url.endswith('.gz'):
+        # Añadimos un Header User-Agent para evitar bloqueos en GitHub u otros servidores
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        response = requests.get(url, headers=headers, timeout=30)
+        
+        if response.status_code != 200:
+            print(f"[ADVERTENCIA] Código HTTP {response.status_code} para: {url}")
+            return None
+
+        # Si la URL termina en .gz o el contenido está comprimido en gzip
+        if url.endswith('.gz') or response.content[:2] == b'\x1f\x8b':
             xml_data = gzip.decompress(response.content)
         else:
             xml_data = response.content
+            
         return ET.fromstring(xml_data)
     except Exception as e:
         print(f"[ERROR] No se pudo descargar o procesar: {url} -> {e}")
@@ -63,33 +71,45 @@ def fetch_and_parse(url):
 
 def merge_epgs():
     combined_root = ET.Element('tv')
+    canales_agregados = 0
+    programas_agregados = 0
 
     for url, tag in EPG_SOURCES.items():
         print(f"Procesando fuente: {tag}...")
         root = fetch_and_parse(url)
         if root is None:
+            print(f"-> Omitida o fallida: {tag}")
             continue
 
         # Limpiar caracteres especiales de la etiqueta para evitar errores en los IDs
-        clean_tag = tag.replace(" ", "_").replace("&", "and")
+        clean_tag = tag.replace(" ", "_").replace("&", "and").replace("|", "_")
 
         # 1. Modificar e insertar etiquetas <channel>
+        c_count = 0
         for channel in root.findall('channel'):
             old_id = channel.get('id')
             if old_id:
                 new_id = f"{clean_tag}_{old_id}"
                 channel.set('id', new_id)
                 combined_root.append(channel)
+                c_count += 1
+        canales_agregados += c_count
 
         # 2. Modificar e insertar etiquetas <programme>
+        p_count = 0
         for programme in root.findall('programme'):
             old_channel_ref = programme.get('channel')
             if old_channel_ref:
                 new_channel_ref = f"{clean_tag}_{old_channel_ref}"
                 programme.set('channel', new_channel_ref)
                 combined_root.append(programme)
+                p_count += 1
+        programmas_agregados += p_count
+        print(f"-> OK: {c_count} canales y {p_count} programas añadidos de {tag}.")
 
+    print(f"\nTotal acumulado: {canales_agregados} canales y {programas_agregados} programas.")
     print("Guardando y comprimiendo el resultado unificado...")
+    
     tree = ET.ElementTree(combined_root)
     
     # Escribir archivo XML temporal
