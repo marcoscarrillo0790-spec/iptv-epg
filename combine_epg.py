@@ -50,33 +50,41 @@ EPG_SOURCES = {
 
 def fetch_and_parse(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        response = requests.get(url, headers=headers, timeout=30)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        # allow_redirects=True asegura que sigamos los enlaces de GitHub sin bloqueos
+        response = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
         
         if response.status_code != 200:
             print(f"[ADVERTENCIA] Código HTTP {response.status_code} para: {url}")
             return None
 
-        if url.endswith('.gz') or response.content[:2] == b'\x1f\x8b':
-            xml_data = gzip.decompress(response.content)
+        # Detectar compresión GZIP mediante extensión o cabecera de bytes binarios (firma mágica \x1f\x8b)
+        if url.endswith('.gz') or response.content.startswith(b'\x1f\x8b'):
+            try:
+                xml_data = gzip.decompress(response.content)
+            except Exception as gz_err:
+                print(f"[ERROR GZIP] No se pudo descomprimir {url}: {gz_err}")
+                return None
         else:
             xml_data = response.content
             
         return ET.fromstring(xml_data)
     except Exception as e:
-        print(f"[ERROR] No se pudo descargar o procesar: {url} -> {e}")
+        print(f"[ERROR] No se pudo descargar o parsear XML de {url} -> {e}")
         return None
 
 def merge_epgs():
     combined_root = ET.Element('tv')
     canales_agregados = 0
-    programas_agregados = 0  # <--- Nombre corregido (una sola 'm')
+    programas_agregados = 0
 
     for url, tag in EPG_SOURCES.items():
         print(f"Procesando fuente: {tag}...")
         root = fetch_and_parse(url)
         if root is None:
-            print(f"-> Omitida o fallida: {tag}")
+            print(f"-> Omitida o fallida (continuando con las demás): {tag}")
             continue
 
         clean_tag = tag.replace(" ", "_").replace("&", "and").replace("|", "_")
@@ -99,11 +107,11 @@ def merge_epgs():
                 programme.set('channel', new_channel_ref)
                 combined_root.append(programme)
                 p_count += 1
-        programas_agregados += p_count  # <--- Corregido aquí también
+        programas_agregados += p_count
 
         print(f"-> OK: {c_count} canales y {p_count} programas añadidos de {tag}.")
 
-    print(f"\nTotal acumulado: {canales_agregados} canales y {programas_agregados} programas.")
+    print(f"\nTotal acumulado general: {canales_agregados} canales y {programas_agregados} programas.")
     print("Guardando y comprimiendo el resultado unificado...")
     
     tree = ET.ElementTree(combined_root)
