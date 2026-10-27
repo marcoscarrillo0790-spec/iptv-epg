@@ -1,0 +1,45 @@
+name: Actualizar EPG Unificado
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias del sistema EPG
+        run: |
+          git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
+          cd epg-temp
+          npm install
+
+      - name: Ejecutar script de descarga (Multirregión Global)
+        run: |
+          cd epg-temp
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,tvguide.com,zap2it.com,directv.com,tvhebdo.com,sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk,virgintvgo.virginmedia.com --gzip
+
+      - name: Mover y comprimir como epg-elgato.xml.gz
+        run: |
+          if [ -f epg-temp/guide.xml ]; then
+            cp epg-temp/guide.xml ./guide.xml
+            gzip -c guide.xml > epg-elgato.xml.gz
+            rm guide.xml
+          fi
+
+      - name: Guardar y subir cambios al repositorio
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "[Bot] Actualización automática de EPG global (Latam, España, USA, Canadá, UK)"
+          file_pattern: "epg-elgato.xml.gz"
