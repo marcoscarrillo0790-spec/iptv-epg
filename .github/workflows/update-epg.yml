@@ -1,17 +1,17 @@
-name: Actualizar EPG Unificado
+name: EPG Multiflujo Global Unificado
 
 on:
   schedule:
-    # Se ejecuta todos los días a las 00:00 UTC
+    # Se ejecuta todos los días a la medianoche UTC
     - cron: '0 0 * * *'
-  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub Actions
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar repositorio
+      - name: Clonar tu repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -19,27 +19,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Instalar dependencias del sistema EPG
+      - name: Clonar e instalar dependencias de IPTV-org EPG
         run: |
           git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
           cd epg-temp
           npm install
 
-      - name: Ejecutar script de descarga (Multirregión Global)
+      - name: Paso 1 - Descargar región LATAM y España
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,tvguide.com,zap2it.com,directv.com,tvhebdo.com,sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk,virgintvgo.virginmedia.com --gzip
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com --output=latam.xml
 
-      - name: Mover y comprimir como epg-elgato.xml.gz
+      - name: Paso 2 - Descargar región USA y Canadá
         run: |
-          if [ -f epg-temp/guide.xml ]; then
-            cp epg-temp/guide.xml ./guide.xml
-            gzip -c guide.xml > epg-elgato.xml.gz
-            rm guide.xml
-          fi
+          cd epg-temp
+          npm run grab --- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --output=usa.xml
 
-      - name: Guardar y subir cambios al repositorio
+      - name: Paso 3 - Descargar región UK
+        run: |
+          cd epg-temp
+          npm run grab --- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --output=uk.xml
+
+      - name: Paso 4 - Unir, comprimir y generar epg-elgato.xml.gz
+        run: |
+          cd epg-temp
+          # Instalamos una herramienta ligera para combinar archivos XMLTV correctamente
+          npm install -g xmltv
+          
+          # Unimos los tres archivos XML generados en uno solo maestro llamado guide.xml
+          xmltv combine -o guide.xml latam.xml usa.xml uk.xml
+          
+          # Lo movemos a la raíz del repositorio y lo comprimimos en .gz con el nombre exacto
+          gzip -c guide.xml > ../epg-elgato.xml.gz
+
+      - name: Subir cambios automáticamente al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG global (Latam, España, USA, Canadá, UK)"
+          commit_message: "[Bot] Actualización automática de EPG multiflujo unificado"
           file_pattern: "epg-elgato.xml.gz"
