@@ -1,4 +1,4 @@
-name: Actualizar EPG Unificado
+name: EPG Multiflujo Global Unificado
 
 on:
   schedule:
@@ -24,21 +24,51 @@ jobs:
           cd epg-temp
           npm install
 
-      - name: Ejecutar descarga global optimizada
+      - name: Bloque 1 - Descargar región LATAM y España
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co,tvguide.com,zap2it.com,directv.com,tvhebdo.com,sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --gzip
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --output=latam.xml
 
-      - name: Mover y comprimir como epg-elgato.xml.gz
+      - name: Bloque 2 - Descargar región USA y Canadá
         run: |
-          if [ -f epg-temp/guide.xml ]; then
-            cp epg-temp/guide.xml ./guide.xml
-            gzip -c guide.xml > epg-elgato.xml.gz
-            rm guide.xml
-          fi
+          cd epg-temp
+          npm run grab --- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --output=usa.xml
+
+      - name: Bloque 3 - Descargar región UK
+        run: |
+          cd epg-temp
+          npm run grab --- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --output=uk.xml
+
+      - name: Bloque 4 - Unir regiones y generar epg-elgato.xml.gz
+        run: |
+          cd epg-temp
+          # Script interno de Node.js para fusionar los 3 archivos XML de forma limpia y segura
+          node -e '
+            const fs = require("fs");
+            let channels = new Set();
+            let programmes = [];
+            
+            ["latam.xml", "usa.xml", "uk.xml"].forEach(file => {
+              if (fs.existsSync(file)) {
+                let content = fs.readFileSync(file, "utf8");
+                let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
+                if (chanMatches) chanMatches.forEach(c => channels.add(c));
+                let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
+                if (progMatches) programmes.push(...progMatches);
+              }
+            });
+
+            let combined = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n" + 
+                           Array.from(channels).join("\n") + "\n" + 
+                           programmes.join("\n") + "\n</tv>";
+            
+            fs.writeFileSync("guide.xml", combined);
+          '
+          # Comprimir y mover a la raíz del repositorio
+          gzip -c guide.xml > ../epg-elgato.xml.gz
 
       - name: Guardar y subir cambios al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG global"
+          commit_message: "[Bot] Actualización EPG multiflujo unificado"
           file_pattern: "epg-elgato.xml.gz"
