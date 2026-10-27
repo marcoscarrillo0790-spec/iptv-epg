@@ -2,7 +2,6 @@ name: EPG Multiflujo Global Unificado
 
 on:
   schedule:
-    # Se ejecuta todos los días a la medianoche UTC
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -19,44 +18,40 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Clonar e instalar dependencias de IPTV-org EPG
+      - name: Instalar dependencias e IPTV-org EPG
         run: |
           git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
           cd epg-temp
           npm install
 
-      - name: Paso 1 - Descargar región LATAM (Hispana) y España
+      - name: Descargar región LATAM y España
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --clean --output=latam.xml
+          npm run grab -- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --clean --output=latam.xml
 
-      - name: Paso 2 - Descargar región USA y Canadá
+      - name: Descargar región USA y Canadá
         run: |
           cd epg-temp
-          npm run grab --- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --clean --output=usa.xml
+          npm run grab -- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --clean --output=usa.xml
 
-      - name: Paso 3 - Descargar región UK
+      - name: Descargar región UK
         run: |
           cd epg-temp
-          npm run grab --- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --clean --output=uk.xml
+          npm run grab -- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --clean --output=uk.xml
 
-      - name: Paso 4 - Unir, comprimir y generar epg-elgato.xml.gz
+      - name: Combinar y comprimir EPG final
         run: |
           cd epg-temp
-          # Usamos un script rápido de Node.js integrado para fusionar los canales y programas de forma limpia sin paquetes externos
           node -e '
             const fs = require("fs");
-            const files = ["latam.xml", "usa.xml", "uk.xml"];
             let channels = new Set();
             let programmes = [];
             
-            files.forEach(file => {
+            ["latam.xml", "usa.xml", "uk.xml"].forEach(file => {
               if (fs.existsSync(file)) {
                 let content = fs.readFileSync(file, "utf8");
-                // Extraer canales
-                let chanMatches = content.match(/<channel id="[\s\S]*?<\/channel>/g);
+                let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
                 if (chanMatches) chanMatches.forEach(c => channels.add(c));
-                // Extraer programas
                 let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
                 if (progMatches) programmes.push(...progMatches);
               }
@@ -68,12 +63,10 @@ jobs:
             
             fs.writeFileSync("guide.xml", combined);
           '
-
-          # Lo movemos a la raíz del repositorio y lo comprimimos en .gz
           gzip -c guide.xml > ../epg-elgato.xml.gz
 
-      - name: Subir cambios automáticamente al repositorio
+      - name: Subir cambios al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG unificado (fusión optimizada)"
+          commit_message: "[Bot] Actualización automática de EPG unificado"
           file_pattern: "epg-elgato.xml.gz"
