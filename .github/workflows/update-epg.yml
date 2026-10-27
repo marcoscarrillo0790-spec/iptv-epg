@@ -43,17 +43,37 @@ jobs:
       - name: Paso 4 - Unir, comprimir y generar epg-elgato.xml.gz
         run: |
           cd epg-temp
-          # Instalamos la herramienta para combinar los archivos XMLTV
-          npm install -g xmltv
-          
-          # Unimos los tres archivos XML generados en uno solo maestro llamado guide.xml
-          xmltv combine -o guide.xml latam.xml usa.xml uk.xml
-          
+          # Usamos un script rápido de Node.js integrado para fusionar los canales y programas de forma limpia sin paquetes externos
+          node -e '
+            const fs = require("fs");
+            const files = ["latam.xml", "usa.xml", "uk.xml"];
+            let channels = new Set();
+            let programmes = [];
+            
+            files.forEach(file => {
+              if (fs.existsSync(file)) {
+                let content = fs.readFileSync(file, "utf8");
+                // Extraer canales
+                let chanMatches = content.match(/<channel id="[\s\S]*?<\/channel>/g);
+                if (chanMatches) chanMatches.forEach(c => channels.add(c));
+                // Extraer programas
+                let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
+                if (progMatches) programmes.push(...progMatches);
+              }
+            });
+
+            let combined = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n" + 
+                           Array.from(channels).join("\n") + "\n" + 
+                           programmes.join("\n") + "\n</tv>";
+            
+            fs.writeFileSync("guide.xml", combined);
+          '
+
           # Lo movemos a la raíz del repositorio y lo comprimimos en .gz
           gzip -c guide.xml > ../epg-elgato.xml.gz
 
       - name: Subir cambios automáticamente al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG unificado (limpio y optimizado)"
+          commit_message: "[Bot] Actualización automática de EPG unificado (fusión optimizada)"
           file_pattern: "epg-elgato.xml.gz"
