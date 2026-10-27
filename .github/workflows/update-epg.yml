@@ -24,25 +24,25 @@ jobs:
           cd epg-temp
           npm install
 
-      - name: Bloque 1 - Descargar región LATAM y España
+      - name: Bloque 1 - Descargar región LATAM y España (filtrada)
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --output=latam.xml
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,anteltv.com.uy,energeek.cl,siba.com.co --output=latam.xml
 
-      - name: Bloque 2 - Descargar región USA y Canadá
+      - name: Bloque 2 - Descargar región USA y Canadá (filtrada)
         run: |
           cd epg-temp
-          npm run grab --- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --output=usa.xml
+          npm run grab --- --sites=tvguide.com,tvhebdo.com --output=usa.xml
 
-      - name: Bloque 3 - Descargar región UK
+      - name: Bloque 3 - Descargar región UK (filtrada)
         run: |
           cd epg-temp
-          npm run grab --- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --output=uk.xml
+          npm run grab --- --sites=sky.com --output=uk.xml
 
       - name: Bloque 4 - Unir regiones y generar epg-elgato.xml.gz
         run: |
           cd epg-temp
-          # Script interno de Node.js para fusionar los 3 archivos XML de forma limpia y segura
+          # Script interno de Node.js para fusionar los archivos XML de forma limpia y segura
           node -e '
             const fs = require("fs");
             let channels = new Set();
@@ -70,5 +70,5 @@ jobs:
       - name: Guardar y subir cambios al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG multiflujo unificado"
+          commit_message: "[Bot] Actualización EPG multiflujo optimizado"
           file_pattern: "epg-elgato.xml.gz"
