@@ -24,10 +24,10 @@ jobs:
           cd epg-temp
           npm install
 
-      - name: Ejecutar descarga global optimizada y limpia
+      - name: Ejecutar descarga global optimizada
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co,tvguide.com,zap2it.com,directv.com,tvhebdo.com,sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --clean --gzip
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co,tvguide.com,zap2it.com,directv.com,tvhebdo.com,sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --gzip
 
       - name: Mover y comprimir como epg-elgato.xml.gz
         run: |
@@ -40,5 +40,5 @@ jobs:
       - name: Guardar y subir cambios al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG global optimizada"
+          commit_message: "[Bot] Actualización automática de EPG global"
           file_pattern: "epg-elgato.xml.gz"
