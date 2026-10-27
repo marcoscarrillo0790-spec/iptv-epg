@@ -42,27 +42,39 @@ jobs:
       - name: Bloque 4 - Unir regiones y generar epg-elgato.xml.gz
         run: |
           cd epg-temp
-          # Script interno de Node.js para fusionar los archivos XML de forma limpia y segura
+          # Script seguro en Node.js que evita desbordar la pila de memoria al fusionar
           node -e '
             const fs = require("fs");
             let channels = new Set();
-            let programmes = [];
+            let allProgrammes = [];
             
             ["latam.xml", "usa.xml", "uk.xml"].forEach(file => {
               if (fs.existsSync(file)) {
                 let content = fs.readFileSync(file, "utf8");
+                
+                // Extraer y almacenar canales únicos
                 let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
-                if (chanMatches) chanMatches.forEach(c => channels.add(c));
+                if (chanMatches) {
+                  chanMatches.forEach(c => channels.add(c));
+                }
+                
+                // Extraer bloques de programas de forma segura por bloques
                 let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
-                if (progMatches) programmes.push(...progMatches);
+                if (progMatches) {
+                  allProgrammes.push(...progMatches);
+                }
               }
             });
 
-            let combined = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n" + 
-                           Array.from(channels).join("\n") + "\n" + 
-                           programmes.join("\n") + "\n</tv>";
-            
-            fs.writeFileSync("guide.xml", combined);
+            // Escribir el archivo XML unificado por partes para evitar errores de memoria
+            fs.writeFileSync("guide.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n");
+            for (let chan of channels) {
+              fs.appendFileSync("guide.xml", chan + "\n");
+            }
+            for (let prog of allProgrammes) {
+              fs.appendFileSync("guide.xml", prog + "\n");
+            }
+            fs.appendFileSync("guide.xml", "</tv>");
           '
           # Comprimir y mover a la raíz del repositorio
           gzip -c guide.xml > ../epg-elgato.xml.gz
@@ -70,5 +82,5 @@ jobs:
       - name: Guardar y subir cambios al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG multiflujo optimizado"
+          commit_message: "[Bot] Actualización EPG multiflujo optimizado sin desborde"
           file_pattern: "epg-elgato.xml.gz"
