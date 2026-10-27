@@ -27,7 +27,7 @@ jobs:
       - name: Bloque 1 - Descargar región LATAM y España (filtrada)
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,anteltv.com.uy,energeek.cl,siba.com.co --output=latam.xml
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com --output=latam.xml
 
       - name: Bloque 2 - Descargar región USA y Canadá (filtrada)
         run: |
