@@ -1,4 +1,4 @@
-name: EPG Multiflujo Global Unificado
+name: Actualizar EPG Unificado
 
 on:
   schedule:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar tu repositorio
+      - name: Clonar repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -18,55 +18,27 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Instalar dependencias e IPTV-org EPG
+      - name: Instalar dependencias del sistema EPG
         run: |
           git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
           cd epg-temp
           npm install
 
-      - name: Descargar región LATAM y España
+      - name: Ejecutar descarga global optimizada y limpia
         run: |
           cd epg-temp
-          npm run grab -- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --clean --output=latam.xml
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co,tvguide.com,zap2it.com,directv.com,tvhebdo.com,sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --clean --gzip
 
-      - name: Descargar región USA y Canadá
+      - name: Mover y comprimir como epg-elgato.xml.gz
         run: |
-          cd epg-temp
-          npm run grab -- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --clean --output=usa.xml
+          if [ -f epg-temp/guide.xml ]; then
+            cp epg-temp/guide.xml ./guide.xml
+            gzip -c guide.xml > epg-elgato.xml.gz
+            rm guide.xml
+          fi
 
-      - name: Descargar región UK
-        run: |
-          cd epg-temp
-          npm run grab -- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --clean --output=uk.xml
-
-      - name: Combinar y comprimir EPG final
-        run: |
-          cd epg-temp
-          node -e '
-            const fs = require("fs");
-            let channels = new Set();
-            let programmes = [];
-            
-            ["latam.xml", "usa.xml", "uk.xml"].forEach(file => {
-              if (fs.existsSync(file)) {
-                let content = fs.readFileSync(file, "utf8");
-                let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
-                if (chanMatches) chanMatches.forEach(c => channels.add(c));
-                let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
-                if (progMatches) programmes.push(...progMatches);
-              }
-            });
-
-            let combined = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n" + 
-                           Array.from(channels).join("\n") + "\n" + 
-                           programmes.join("\n") + "\n</tv>";
-            
-            fs.writeFileSync("guide.xml", combined);
-          '
-          gzip -c guide.xml > ../epg-elgato.xml.gz
-
-      - name: Subir cambios al repositorio
+      - name: Guardar y subir cambios al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG unificado"
+          commit_message: "[Bot] Actualización automática de EPG global optimizada"
           file_pattern: "epg-elgato.xml.gz"
