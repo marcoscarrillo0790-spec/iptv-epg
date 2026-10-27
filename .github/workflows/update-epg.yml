@@ -25,10 +25,10 @@ jobs:
           cd epg-temp
           npm install
 
-      - name: Paso 1 - Descargar región LATAM y España
+      - name: Paso 1 - Descargar región LATAM (Hispana) y España
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com --output=latam.xml
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --output=latam.xml
 
       - name: Paso 2 - Descargar región USA y Canadá
         run: |
@@ -43,17 +43,17 @@ jobs:
       - name: Paso 4 - Unir, comprimir y generar epg-elgato.xml.gz
         run: |
           cd epg-temp
-          # Instalamos una herramienta ligera para combinar archivos XMLTV correctamente
+          # Instalamos la herramienta para combinar los archivos XMLTV
           npm install -g xmltv
           
           # Unimos los tres archivos XML generados en uno solo maestro llamado guide.xml
           xmltv combine -o guide.xml latam.xml usa.xml uk.xml
           
-          # Lo movemos a la raíz del repositorio y lo comprimimos en .gz con el nombre exacto
+          # Lo movemos a la raíz del repositorio y lo comprimimos en .gz
           gzip -c guide.xml > ../epg-elgato.xml.gz
 
       - name: Subir cambios automáticamente al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG multiflujo unificado"
+          commit_message: "[Bot] Actualización automática de EPG unificado (limpio de Brasil)"
           file_pattern: "epg-elgato.xml.gz"
