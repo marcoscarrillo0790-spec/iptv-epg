@@ -28,17 +28,17 @@ jobs:
       - name: Paso 1 - Descargar región LATAM (Hispana) y España
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --output=latam.xml
+          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com,directv.com.ar,tv.movistar.co,tv.movistar.com.pe,directv.com.uy,anteltv.com.uy,energeek.cl,siba.com.co --clean --output=latam.xml
 
       - name: Paso 2 - Descargar región USA y Canadá
         run: |
           cd epg-temp
-          npm run grab --- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --output=usa.xml
+          npm run grab --- --sites=tvguide.com,zap2it.com,directv.com,tvhebdo.com --clean --output=usa.xml
 
       - name: Paso 3 - Descargar región UK
         run: |
           cd epg-temp
-          npm run grab --- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --output=uk.xml
+          npm run grab --- --sites=sky.com,freeview.co.uk,tv24.co.uk,mytelly.co.uk --clean --output=uk.xml
 
       - name: Paso 4 - Unir, comprimir y generar epg-elgato.xml.gz
         run: |
@@ -55,5 +55,5 @@ jobs:
       - name: Subir cambios automáticamente al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG unificado (limpio de Brasil)"
+          commit_message: "[Bot] Actualización automática de EPG unificado (limpio y optimizado)"
           file_pattern: "epg-elgato.xml.gz"
