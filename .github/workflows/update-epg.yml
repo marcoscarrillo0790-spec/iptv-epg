@@ -1,4 +1,4 @@
-name: EPG Multiflujo Global Unificado
+name: EPG Multiflujo Global Unificado (Paralelo)
 
 on:
   schedule:
@@ -6,13 +6,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  # -------------------------------------------------------------
+  # TRABAJO 1: DESCARGAR REGIONES EN PARALELO
+  # -------------------------------------------------------------
+  descargar-regiones:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: latam
+            sites: "gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com"
+          - id: usa
+            sites: "tvguide.com,tvhebdo.com"
+          - id: uk
+            sites: "sky.com"
 
     steps:
-      - name: Clonar repositorio
-        uses: actions/checkout@v4
-
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
@@ -24,25 +34,42 @@ jobs:
           cd epg-temp
           npm install
 
-      - name: Bloque 1 - Descargar región LATAM y España (filtrada)
+      - name: Descargar fuente ${{ matrix.id }}
         run: |
           cd epg-temp
-          npm run grab --- --sites=gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com --output=latam.xml
+          npm run grab --- --sites=${{ matrix.sites }} --output=${{ matrix.id }}.xml
 
-      - name: Bloque 2 - Descargar región USA y Canadá (filtrada)
-        run: |
-          cd epg-temp
-          npm run grab --- --sites=tvguide.com,tvhebdo.com --output=usa.xml
+      - name: Guardar archivo XML como artefacto temporal
+        uses: actions/upload-artifact@v4
+        with:
+          name: epg-${{ matrix.id }}
+          path: epg-temp/${{ matrix.id }}.xml
+          retention-days: 1
 
-      - name: Bloque 3 - Descargar región UK (filtrada)
-        run: |
-          cd epg-temp
-          npm run grab --- --sites=sky.com --output=uk.xml
+  # -------------------------------------------------------------
+  # TRABAJO 2: UNIFICAR, COMPRIMIR Y SUBIR AL REPOSITORIO
+  # -------------------------------------------------------------
+  unificar-y-subir:
+    needs: descargar-regiones
+    runs-on: ubuntu-latest
 
-      - name: Bloque 4 - Unir regiones y generar epg-elgato.xml.gz
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Descargar todos los XML generados en paralelo
+        uses: actions/download-artifact@v4
+        with:
+          pattern: epg-*
+          merge-multiple: true
+
+      - name: Unir regiones en un solo archivo XML
         run: |
-          cd epg-temp
-          # Script seguro en Node.js que evita desbordar la pila de memoria al fusionar
           node -e '
             const fs = require("fs");
             let channels = new Set();
@@ -52,21 +79,14 @@ jobs:
               if (fs.existsSync(file)) {
                 let content = fs.readFileSync(file, "utf8");
                 
-                // Extraer y almacenar canales únicos
                 let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
-                if (chanMatches) {
-                  chanMatches.forEach(c => channels.add(c));
-                }
+                if (chanMatches) chanMatches.forEach(c => channels.add(c));
                 
-                // Extraer bloques de programas de forma segura por bloques
                 let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
-                if (progMatches) {
-                  allProgrammes.push(...progMatches);
-                }
+                if (progMatches) allProgrammes.push(...progMatches);
               }
             });
 
-            // Escribir el archivo XML unificado por partes para evitar errores de memoria
             fs.writeFileSync("guide.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n");
             for (let chan of channels) {
               fs.appendFileSync("guide.xml", chan + "\n");
@@ -76,11 +96,11 @@ jobs:
             }
             fs.appendFileSync("guide.xml", "</tv>");
           '
-          # Comprimir y mover a la raíz del repositorio
-          gzip -c guide.xml > ../epg-elgato.xml.gz
+          gzip -c guide.xml > epg-elgato.xml.gz
+          rm guide.xml
 
-      - name: Guardar y subir cambios al repositorio
+      - name: Guardar y subir epg-elgato.xml.gz al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG multiflujo optimizado sin desborde"
+          commit_message: "[Bot] Actualización automática de EPG unificado (Paralelo)"
           file_pattern: "epg-elgato.xml.gz"
