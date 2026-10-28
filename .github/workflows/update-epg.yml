@@ -1,8 +1,55 @@
-unificar-y-subir:
+name: EPG Multiflujo Global Unificado (Paralelo y Externas)
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  # -------------------------------------------------------------
+  # TRABAJO 1: DESCARGAR REGIONES PROPIAS EN PARALELO (Solo LATAM)
+  # -------------------------------------------------------------
+  descargar-regiones:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: latam
+            sites: "gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com"
+
+    steps:
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias del sistema EPG
+        run: |
+          git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
+          cd epg-temp
+          npm install
+
+      - name: Descargar fuente ${{ matrix.id }}
+        run: |
+          cd epg-temp
+          npm run grab --- --sites=${{ matrix.sites }} --output=${{ matrix.id }}.xml
+
+      - name: Guardar archivo XML como artefacto temporal
+        uses: actions/upload-artifact@v4
+        with:
+          name: epg-${{ matrix.id }}
+          path: epg-temp/${{ matrix.id }}.xml
+          retention-days: 1
+
+  # -------------------------------------------------------------
+  # TRABAJO 2: UNIFICAR, HOMOLOGAR, COMPRIMIR Y SUBIR AL REPOSITORIO
+  # -------------------------------------------------------------
+  unificar-y-subir:
     needs: descargar-regiones
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # <-- Esto otorga permiso de escritura al flujo
+      contents: write  # Otorga permisos de escritura para que el bot pueda hacer el push
 
     steps:
       - name: Clonar repositorio
@@ -45,8 +92,10 @@ unificar-y-subir:
               "epg14.xml", "epg52.xml", "epg42.xml", "epg38.xml"
             ];
             
+            // 1. Inicializar archivo maestro XML
             fs.writeFileSync("guide.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n");
 
+            // 2. Extraer y escribir canales únicos
             archivos.forEach(file => {
               if (fs.existsSync(file)) {
                 let content = fs.readFileSync(file, "utf8");
@@ -61,6 +110,7 @@ unificar-y-subir:
               fs.appendFileSync("guide.xml", chan + "\n");
             }
 
+            // 3. Extraer y escribir programas secuencialmente (evita desborde de memoria)
             archivos.forEach(file => {
               if (fs.existsSync(file)) {
                 console.log("Procesando programas de: " + file);
@@ -74,6 +124,7 @@ unificar-y-subir:
               }
             });
 
+            // 4. Cerrar etiqueta principal
             fs.appendFileSync("guide.xml", "</tv>");
           '
           gzip -c guide.xml > epg-elgato.xml.gz
@@ -82,5 +133,5 @@ unificar-y-subir:
       - name: Guardar y subir epg-elgato.xml.gz al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG unificado y homologado sin desborde"
+          commit_message: "[Bot] Actualización EPG unificado, homologado y optimizado"
           file_pattern: "epg-elgato.xml.gz"
