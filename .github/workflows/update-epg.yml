@@ -83,7 +83,6 @@ jobs:
           node -e '
             const fs = require("fs");
             let channels = new Set();
-            let allProgrammes = [];
             
             const archivos = [
               "latam.xml", 
@@ -91,29 +90,39 @@ jobs:
               "epg14.xml", "epg52.xml", "epg42.xml", "epg38.xml"
             ];
             
+            // 1. Inicializar archivo maestro XML
+            fs.writeFileSync("guide.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n");
+
+            // 2. Extraer y escribir canales únicos
             archivos.forEach(file => {
               if (fs.existsSync(file)) {
                 let content = fs.readFileSync(file, "utf8");
-                
                 let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
                 if (chanMatches) {
                   chanMatches.forEach(c => channels.add(c));
                 }
-                
+              }
+            });
+
+            for (let chan of channels) {
+              fs.appendFileSync("guide.xml", chan + "\n");
+            }
+
+            // 3. Extraer y escribir programas secuencialmente (evita desborde de memoria)
+            archivos.forEach(file => {
+              if (fs.existsSync(file)) {
+                console.log("Procesando programas de: " + file);
+                let content = fs.readFileSync(file, "utf8");
                 let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
                 if (progMatches) {
-                  allProgrammes.push(...progMatches);
+                  for (let i = 0; i < progMatches.length; i++) {
+                    fs.appendFileSync("guide.xml", progMatches[i] + "\n");
+                  }
                 }
               }
             });
 
-            fs.writeFileSync("guide.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n");
-            for (let chan of channels) {
-              fs.appendFileSync("guide.xml", chan + "\n");
-            }
-            for (let prog of allProgrammes) {
-              fs.appendFileSync("guide.xml", prog + "\n");
-            }
+            // 4. Cerrar etiqueta principal
             fs.appendFileSync("guide.xml", "</tv>");
           '
           gzip -c guide.xml > epg-elgato.xml.gz
@@ -122,5 +131,5 @@ jobs:
       - name: Guardar y subir epg-elgato.xml.gz al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG sin UK y con listas externas homologadas"
+          commit_message: "[Bot] Actualización EPG unificado y homologado sin desborde"
           file_pattern: "epg-elgato.xml.gz"
