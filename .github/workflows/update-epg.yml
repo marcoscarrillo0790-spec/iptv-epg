@@ -1,4 +1,4 @@
-name: EPG Multiflujo Global Unificado (Paralelo)
+name: EPG Multiflujo Global Unificado (Paralelo y Externas)
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   # -------------------------------------------------------------
-  # TRABAJO 1: DESCARGAR REGIONES EN PARALELO
+  # TRABAJO 1: DESCARGAR REGIONES PROPIAS EN PARALELO (Solo LATAM)
   # -------------------------------------------------------------
   descargar-regiones:
     runs-on: ubuntu-latest
@@ -17,10 +17,6 @@ jobs:
         include:
           - id: latam
             sites: "gatotv.com,mi.tv,movistarplus.es,orangetv.orange.es,programacion-tv.elpais.com"
-          - id: usa
-            sites: "tvguide.com,tvhebdo.com"
-          - id: uk
-            sites: "sky.com"
 
     steps:
       - name: Configurar Node.js
@@ -47,7 +43,7 @@ jobs:
           retention-days: 1
 
   # -------------------------------------------------------------
-  # TRABAJO 2: UNIFICAR, COMPRIMIR Y SUBIR AL REPOSITORIO
+  # TRABAJO 2: UNIFICAR, HOMOLOGAR, COMPRIMIR Y SUBIR AL REPOSITORIO
   # -------------------------------------------------------------
   unificar-y-subir:
     needs: descargar-regiones
@@ -62,28 +58,52 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Descargar todos los XML generados en paralelo
+      - name: Descargar regiones propias generadas
         uses: actions/download-artifact@v4
         with:
           pattern: epg-*
           merge-multiple: true
 
-      - name: Unir regiones en un solo archivo XML
+      - name: Descargar y descomprimir listas EPG externas (Strong 8K / Ferteque)
+        run: |
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg2.xml.gz" -o epg2.xml.gz
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz" -o epg1.xml.gz
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz" -o epg6.xml.gz
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg14.xml.gz" -o epg14.xml.gz
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg52.xml.gz" -o epg52.xml.gz
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz" -o epg42.xml.gz
+          curl -L "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg38.xml.gz" -o epg38.xml.gz
+
+          for f in *.gz; do
+            gunzip -f "$f"
+          done
+
+      - name: Unir y homologar todas las regiones en un solo archivo XML
         run: |
           node -e '
             const fs = require("fs");
             let channels = new Set();
             let allProgrammes = [];
             
-            ["latam.xml", "usa.xml", "uk.xml"].forEach(file => {
+            const archivos = [
+              "latam.xml", 
+              "epg2.xml", "epg1.xml", "epg6.xml", 
+              "epg14.xml", "epg52.xml", "epg42.xml", "epg38.xml"
+            ];
+            
+            archivos.forEach(file => {
               if (fs.existsSync(file)) {
                 let content = fs.readFileSync(file, "utf8");
                 
                 let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
-                if (chanMatches) chanMatches.forEach(c => channels.add(c));
+                if (chanMatches) {
+                  chanMatches.forEach(c => channels.add(c));
+                }
                 
                 let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
-                if (progMatches) allProgrammes.push(...progMatches);
+                if (progMatches) {
+                  allProgrammes.push(...progMatches);
+                }
               }
             });
 
@@ -97,10 +117,10 @@ jobs:
             fs.appendFileSync("guide.xml", "</tv>");
           '
           gzip -c guide.xml > epg-elgato.xml.gz
-          rm guide.xml
+          rm -f guide.xml *.xml
 
       - name: Guardar y subir epg-elgato.xml.gz al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización automática de EPG unificado (Paralelo)"
+          commit_message: "[Bot] Actualización EPG sin UK y con listas externas homologadas"
           file_pattern: "epg-elgato.xml.gz"
