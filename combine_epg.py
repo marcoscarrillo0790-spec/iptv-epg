@@ -4,6 +4,16 @@ import xml.etree.ElementTree as ET
 
 # Diccionario con tus fuentes
 EPG_SOURCES = {
+    # Fuentes Personalizadas / Ferteque
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg2.xml.gz": "JAMS-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "FERTEQUE-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "GANJA RELEASE-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg14.xml.gz": "TROPAZ-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg52.xml.gz": "MON-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "KOALA-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg38.xml.gz": "KOALA-EUROPA-STRONG 8K",
+    
+    # Fuentes Open-EPG
     "https://www.open-epg.com/files/argentina.xml.gz": "argentina.xml.gz",
     "https://www.open-epg.com/files/bolivia.xml.gz": "bolivia.xml.gz",
     "https://www.open-epg.com/files/canada.xml.gz": "canada.xml.gz",
@@ -27,25 +37,7 @@ EPG_SOURCES = {
     "https://www.open-epg.com/files/portugal2.xml.gz": "portugal2.xml.gz",
     "https://www.open-epg.com/files/puertorico1.xml.gz": "puertorico1.xml.gz",
     "https://www.open-epg.com/files/puertorico2.xml.gz": "puertorico2.xml.gz",
-    "https://www.open-epg.com/files/spain.xml.gz": "spain.xml.gz",
-    "https://www.open-epg.com/files/sports4.xml.txt": "sports4.xml.gz",
-    "https://www.open-epg.com/files/unitedkingdom.xml.gz": "unitedkingdom.xml.gz",
-    "https://www.open-epg.com/files/unitedstates10.xml.gz": "unitedstates10.xml.gz",
-    "https://www.open-epg.com/files/unitedstates11.xml.gz": "unitedstates11.xml.gz",
-    "https://www.open-epg.com/files/unitedstates2.xml.gz": "unitedstates2.xml.gz",
-    "https://www.open-epg.com/files/unitedstates3.xml.gz": "unitedstates3.xml.gz",
-    "https://www.open-epg.com/files/unitedstates4.xml.gz": "unitedstates4.xml.gz",
-    "https://www.open-epg.com/files/unitedstates5.xml.gz": "unitedstates5.xml.gz",
-    "https://www.open-epg.com/files/unitedstates6.xml.gz": "unitedstates6.xml.gz",
-    "https://www.open-epg.com/files/unitedstates7.xml.gz": "unitedstates7.xml.gz",
-    "https://www.open-epg.com/files/unitedstates8.xml.gz": "unitedstates8.xml.gz",
-    "https://www.open-epg.com/files/unitedstates9.xml.gz": "unitedstates9.xml.gz",
-    "https://www.open-epg.com/files/uruguay.xml.gz": "uruguay.xml.gz",
-    "https://www.open-epg.com/files/venezuela1.xml.gz": "venezuela1.xml.gz",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "Spain football&Tv",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "latam strong8k",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg37.xml.gz": "US SPORTS",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "US_CAN_UK_SPORTS_AND_LIVE"
+    "https://www.open-epg.com/files/spain.xml.gz": "spain.xml.gz"
 }
 
 def fetch_and_parse(url):
