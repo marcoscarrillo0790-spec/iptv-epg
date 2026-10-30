@@ -1,4 +1,4 @@
-name: EPG Multiflujo Global Unificado (Solo LATAM)
+name: EPG Multiflujo Global Unificado (Inteligente y Prioritario)
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   # -------------------------------------------------------------
-  # TRABAJO 1: DESCARGAR LATAM EN PARALELO / DIRECTO
+  # TRABAJO 1: DESCARGAR LATAM MEDIANTE IPTV-ORG
   # -------------------------------------------------------------
   descargar-regiones:
     runs-on: ubuntu-latest
@@ -43,79 +43,39 @@ jobs:
           retention-days: 1
 
   # -------------------------------------------------------------
-  # TRABAJO 2: UNIFICAR, HOMOLOGAR, COMPRIMIR Y SUBIR AL REPOSITORIO
+  # TRABAJO 2: EJECUTAR SCRIPT INTELIGENTE DE PYTHON Y SUBIR
   # -------------------------------------------------------------
   unificar-y-subir:
     needs: descargar-regiones
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Otorga permisos de escritura para que el bot pueda hacer el push
+      contents: write  # Permisos de escritura para el bot
 
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20'
+          python-version: '3.10'
 
-      - name: Descargar regiones propias generadas
+      - name: Instalar dependencias de Python (si usas requests, etc.)
+        run: |
+          pip install requests
+
+      - name: Descargar regiones propias generadas (latam.xml)
         uses: actions/download-artifact@v4
         with:
           pattern: epg-*
           merge-multiple: true
 
-      - name: Unir y homologar la región LATAM en un solo archivo XML
+      - name: Ejecutar script de fusión inteligente en Python
         run: |
-          node -e '
-            const fs = require("fs");
-            let channels = new Set();
-            
-            const archivos = [
-              "latam.xml"
-            ];
-            
-            // 1. Inicializar archivo maestro XML
-            fs.writeFileSync("guide.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv>\n");
-
-            // 2. Extraer y escribir canales únicos
-            archivos.forEach(file => {
-              if (fs.existsSync(file)) {
-                let content = fs.readFileSync(file, "utf8");
-                let chanMatches = content.match(/<channel id=[\s\S]*?<\/channel>/g);
-                if (chanMatches) {
-                  chanMatches.forEach(c => channels.add(c));
-                }
-              }
-            });
-
-            for (let chan of channels) {
-              fs.appendFileSync("guide.xml", chan + "\n");
-            }
-
-            // 3. Extraer y escribir programas secuencialmente (evita desborde de memoria)
-            archivos.forEach(file => {
-              if (fs.existsSync(file)) {
-                console.log("Procesando programas de: " + file);
-                let content = fs.readFileSync(file, "utf8");
-                let progMatches = content.match(/<programme[\s\S]*?<\/programme>/g);
-                if (progMatches) {
-                  for (let i = 0; i < progMatches.length; i++) {
-                    fs.appendFileSync("guide.xml", progMatches[i] + "\n");
-                  }
-                }
-              }
-            });
-
-            // 4. Cerrar etiqueta principal
-            fs.appendFileSync("guide.xml", "</tv>");
-          '
-          gzip -c guide.xml > epg-elgato.xml.gz
-          rm -f guide.xml *.xml
+          python merge_epg.py
 
       - name: Guardar y subir epg-elgato.xml.gz al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG unificado exclusivamente para LATAM"
+          commit_message: "[Bot] Actualización EPG unificado inteligente (LATAM + Open-EPG + Strong 8K)"
           file_pattern: "epg-elgato.xml.gz"
