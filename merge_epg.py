@@ -5,7 +5,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 SOURCES = {
-    # Archivo local generado por iptv-org en el primer paso del workflow
+    # Si descargamos latam.xml previamente en el workflow, lo leemos localmente:
     "latam.xml": "LATAM",
     
     # Fuentes Personalizadas / Ferteque
@@ -17,7 +17,7 @@ SOURCES = {
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "KOALA-STRONG 8K",
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg38.xml.gz": "KOALA-EUROPA-STRONG 8K",
     
-    # Fuentes Open-EPG Principales y Secundarias
+    # Fuentes Open-EPG
     "https://www.open-epg.com/files/argentina.xml.gz": "argentina",
     "https://www.open-epg.com/files/mexico1.xml.gz": "mexico1",
     "https://www.open-epg.com/files/mexico2.xml.gz": "mexico2",
@@ -66,7 +66,7 @@ def descargar_y_descomprimir():
                     archivos_xml.append((xml_path, nombre_id))
                     print(f"📁 Usando archivo local [{nombre_id}]")
                 else:
-                    print(f"⚠️ Archivo local no encontrado: {path_or_url}")
+                    print(f"⚠️ Archivo local no encontrado (omitido): {path_or_url}")
                 continue
 
             print(f"📥 Descargando [{nombre_id}]...")
