@@ -1,0 +1,51 @@
+name: EPG Global Unificado e Inteligente
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 11:00 UTC (5:00 AM Hora Central de México)
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+jobs:
+  generar-epg:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js (Para iptv-org)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Descargar fuente LATAM usando iptv-org
+        run: |
+          git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
+          cd epg-temp
+          npm install
+          npm run grab --- --sites="gatotv.com,mi.tv" --output=../latam.xml
+          cd ..
+          rm -rf epg-temp
+
+      - name: Ejecutar script de fusión inteligente en Python
+        run: |
+          python merge_epg.py
+
+      - name: Comprimir resultado final a .gz
+        run: |
+          gzip -c guia_final_unificada.xml > epg-elgato.xml.gz
+          rm -f guia_final_unificada.xml latam.xml
+
+      - name: Guardar y subir epg-elgato.xml.gz al repositorio
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "[Bot] Actualización EPG unificado inteligente (LATAM + Open-EPG + Strong 8K)"
+          file_pattern: "epg-elgato.xml.gz"
