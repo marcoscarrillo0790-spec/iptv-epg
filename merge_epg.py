@@ -5,17 +5,17 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 SOURCES = {
-    # Si descargamos latam.xml previamente en el workflow, lo leemos localmente:
+    # Archivo local generado por iptv-org en el primer paso del workflow
     "latam.xml": "LATAM",
     
-    # Fuentes Personalizadas / Ferteque
+    # Fuentes Personalizadas / Ferteque (Prioritarias)
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "KOALA-STRONG 8K",
+    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg38.xml.gz": "KOALA-EUROPA-STRONG 8K",
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg2.xml.gz": "JAMS-STRONG 8K",
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "FERTEQUE-STRONG 8K",
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "GANJA RELEASE-STRONG 8K",
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg14.xml.gz": "TROPAZ-STRONG 8K",
     "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg52.xml.gz": "MON-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "KOALA-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg38.xml.gz": "KOALA-EUROPA-STRONG 8K",
     
     # Fuentes Open-EPG
     "https://www.open-epg.com/files/argentina.xml.gz": "argentina",
@@ -66,7 +66,7 @@ def descargar_y_descomprimir():
                     archivos_xml.append((xml_path, nombre_id))
                     print(f"📁 Usando archivo local [{nombre_id}]")
                 else:
-                    print(f"⚠️ Archivo local no encontrado (omitido): {path_or_url}")
+                    print(f"⚠️ Archivo local no encontrado: {path_or_url}")
                 continue
 
             print(f"📥 Descargando [{nombre_id}]...")
@@ -91,10 +91,23 @@ def fusionar_xmltv_inteligente(archivos_xml, output_path):
     channels_dict = {}  
     programmes_list = []
     
+    # Orden estricto de prioridades (Primero Strong 8K / Koala, luego LATAM y Open-EPG)
     priority_sources = [
-        'argentina', 'mexico', 'peru', 
-        'colombia', 'elsalvador', 'guatemala', 
-        'honduras', 'koala-strong_8k', 'latam'
+        'koala-strong_8k',
+        'koala-europa-strong_8k',
+        'jams-strong_8k',
+        'ferteque-strong_8k',
+        'ganja_release-strong_8k',
+        'tropaz-strong_8k',
+        'mon-strong_8k',
+        'latam',
+        'argentina', 
+        'mexico', 
+        'peru', 
+        'colombia', 
+        'elsalvador', 
+        'guatemala', 
+        'honduras'
     ]
 
     for archivo, nombre_id in archivos_xml:
