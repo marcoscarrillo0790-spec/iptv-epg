@@ -25,11 +25,12 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Descargar fuente LATAM usando iptv-org
+      - name: Descargar fuente LATAM usando iptv-org (Excluyendo open-epg.com)
         run: |
           git clone --depth 1 -b master https://github.com/iptv-org/epg.git epg-temp
           cd epg-temp
           npm install
+          # Ajusta aquí los sitios de iptv-org que necesitas (sin open-epg.com)
           npm run grab --- --sites="gatotv.com,mi.tv" --output=../latam.xml
           cd ..
           rm -rf epg-temp
@@ -38,13 +39,19 @@ jobs:
         run: |
           python merge_epg.py
 
-      - name: Comprimir resultado final a .gz
+      - name: Comprimir resultados a .gz independientes
         run: |
-          gzip -c guia_final_unificada.xml > epg-elgato.xml.gz
-          rm -f guia_final_unificada.xml latam.xml
+          # Archivo 1: EPG de iptv-org
+          gzip -c latam.xml > epg-elgato.xml.gz
+          
+          # Archivo 2: EPG unificado de ferteque / strong8k
+          gzip -c strong8k.xml > strong8k.xml.gz
+          
+          # Limpieza de archivos XML intermedios
+          rm -f latam.xml strong8k.xml guia_final_unificada.xml
 
-      - name: Guardar y subir epg-elgato.xml.gz al repositorio
+      - name: Guardar y subir archivos EPG al repositorio
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "[Bot] Actualización EPG unificado inteligente (LATAM + Open-EPG + Strong 8K)"
-          file_pattern: "epg-elgato.xml.gz"
+          commit_message: "[Bot] Actualización EPG: strong8k.xml.gz y epg-elgato.xml.gz actualizados"
+          file_pattern: "epg-elgato.xml.gz strong8k.xml.gz"
