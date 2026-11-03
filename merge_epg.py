@@ -1,189 +1,91 @@
-import os
-import gzip
-import shutil
 import urllib.request
 import xml.etree.ElementTree as ET
+import gzip
+import io
 
-SOURCES = {
-    # Archivo local generado por iptv-org en el primer paso del workflow
-    "latam.xml": "LATAM",
-    
-    # Fuentes Personalizadas / Ferteque (Prioritarias)
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg42.xml.gz": "KOALA-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg38.xml.gz": "KOALA-EUROPA-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg2.xml.gz": "JAMS-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg1.xml.gz": "FERTEQUE-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg6.xml.gz": "GANJA RELEASE-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg14.xml.gz": "TROPAZ-STRONG 8K",
-    "https://github.com/ferteque/Curated-M3U-Repository/raw/refs/heads/main/epg52.xml.gz": "MON-STRONG 8K",
-    
-    # Fuentes Open-EPG
-    "https://www.open-epg.com/files/argentina.xml.gz": "argentina",
-    "https://www.open-epg.com/files/mexico1.xml.gz": "mexico1",
-    "https://www.open-epg.com/files/mexico2.xml.gz": "mexico2",
-    "https://www.open-epg.com/files/peru.xml.gz": "peru",
-    "https://www.open-epg.com/files/colombia1.xml.gz": "colombia1",
-    "https://www.open-epg.com/files/colombia2.xml.gz": "colombia2",
-    "https://www.open-epg.com/files/elsalvador1.xml.gz": "elsalvador1",
-    "https://www.open-epg.com/files/guatemala.xml.gz": "guatemala",
-    "https://www.open-epg.com/files/honduras.xml.gz": "honduras",
-    "https://www.open-epg.com/files/bolivia.xml.gz": "bolivia",
-    "https://www.open-epg.com/files/canada.xml.gz": "canada",
-    "https://www.open-epg.com/files/chile1.xml.gz": "chile1",
-    "https://www.open-epg.com/files/chile2.xml.gz": "chile2",
-    "https://www.open-epg.com/files/costarica1.xml.gz": "costarica1",
-    "https://www.open-epg.com/files/dominican1.xml.gz": "dominican1",
-    "https://www.open-epg.com/files/ecuador1.xml.gz": "ecuador1",
-    "https://www.open-epg.com/files/panama1.xml.gz": "panama1",
-    "https://www.open-epg.com/files/paraguay1.xml.gz": "paraguay1",
-    "https://www.open-epg.com/files/paraguay2.xml.gz": "paraguay2",
-    "https://www.open-epg.com/files/portugal1.xml.gz": "portugal1",
-    "https://www.open-epg.com/files/portugal2.xml.gz": "portugal2",
-    "https://www.open-epg.com/files/puertorico1.xml.gz": "puertorico1",
-    "https://www.open-epg.com/files/puertorico2.xml.gz": "puertorico2",
-    "https://www.open-epg.com/files/spain.xml.gz": "spain"
-}
+# Definición de tus fuentes externas para strong8k / ferteque / KOALA-STRONG 8K
+# (Puedes agregar o ajustar las URLs directas de tus listas aquí)
+FUENTES_STRONG8K = [
+    # Ejemplo de enlace de ferteque / strong8k (reemplaza o añade los tuyos reales)
+    "https://raw.githubusercontent.com/ferteque/epg/main/strong8k.xml", 
+    # Agrega más URLs si lo requieres
+]
 
-TEMP_DIR = "epg_temp"
-OUTPUT_FILE = "guia_final_unificada.xml"
+def limpiar_y_filtrar_elemento(elem):
+    """Verifica si el elemento o sus atributos contienen referencias a open-epg.com"""
+    # Revisar atributos comunes donde suele aparecer la fuente
+    for key, val in elem.attrib.items():
+        if val and "open-epg.com" in val.lower():
+        # Si prefieres comprobar texto interno o IDs, puedes añadirlo aquí
+            return False
+    return True
 
-def preparar_entorno():
-    if not os.path.exists(TEMP_DIR):
-        os.makedirs(TEMP_DIR)
-
-def descargar_y_descomprimir():
-    archivos_xml = []
-    for path_or_url, nombre_id in SOURCES.items():
-        safe_filename = nombre_id.lower().replace(" ", "_").replace("&", "and") + ".xml.gz"
-        compressed_path = os.path.join(TEMP_DIR, safe_filename)
-        xml_name = safe_filename.replace(".gz", "")
-        xml_path = os.path.join(TEMP_DIR, xml_name)
-        
-        try:
-            if not path_or_url.startswith("http"):
-                if os.path.exists(path_or_url):
-                    shutil.copyfile(path_or_url, xml_path)
-                    archivos_xml.append((xml_path, nombre_id))
-                    print(f"📁 Usando archivo local [{nombre_id}]")
-                else:
-                    print(f"⚠️ Archivo local no encontrado: {path_or_url}")
-                continue
-
-            print(f"📥 Descargando [{nombre_id}]...")
-            urllib.request.urlretrieve(path_or_url, compressed_path)
+def procesar_xml_desde_fuente(url_o_archivo, es_url=True):
+    """Descarga (o lee) un XML/GZ, filtra open-epg y retorna una lista de elementos <channel> y <programme>"""
+    elementos_validos = []
+    try:
+        if es_url:
+            print(f"Descargando fuente: {url_o_archivo}")
+            req = urllib.request.urlopen(url_o_archivo, timeout=30)
+            contenido = req.read()
             
-            if safe_filename.endswith(".gz"):
-                with gzip.open(compressed_path, "rb") as f_in:
-                    with open(xml_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                archivos_xml.append((xml_path, nombre_id))
-            else:
-                archivos_xml.append((compressed_path, nombre_id))
-                
-        except Exception as e:
-            print(f"⚠️ Error al procesar {nombre_id} ({path_or_url}): {e}")
+            # Si el archivo descargado está comprimido en gzip
+            if url_o_archivo.endswith('.gz') or contenido[:2] == b'\x1f\x8b':
+                with gzip.GzipFile(fileobj=io.BytesIO(contenido)) as f:
+                    contenido = f.read()
             
-    return archivos_xml
-
-def fusionar_xmltv_inteligente(archivos_xml, output_path):
-    print("🔄 Analizando y fusionando inteligentemente los archivos EPG...")
-    
-    channels_dict = {}  
-    programmes_list = []
-    
-    # Orden estricto de prioridades (Primero Strong 8K / Koala, luego LATAM y Open-EPG)
-    priority_sources = [
-        'koala-strong_8k',
-        'koala-europa-strong_8k',
-        'jams-strong_8k',
-        'ferteque-strong_8k',
-        'ganja_release-strong_8k',
-        'tropaz-strong_8k',
-        'mon-strong_8k',
-        'latam',
-        'argentina', 
-        'mexico', 
-        'peru', 
-        'colombia', 
-        'elsalvador', 
-        'guatemala', 
-        'honduras'
-    ]
-
-    for archivo, nombre_id in archivos_xml:
-        try:
-            tree = ET.parse(archivo)
+            root = ET.fromstring(contenido)
+        else:
+            # Para archivos locales como latam.xml
+            tree = ET.parse(url_o_archivo)
             root = tree.getroot()
+
+        # Filtrar canales y programas descartando open-epg.com
+        for child in root:
+            # Validar si el canal/programa menciona open-epg
+            texto_elemento = ET.tostring(child, encoding='utf-8').decode('utf-8').lower()
+            if "open-epg.com" in texto_elemento:
+                continue # Se descarta
             
-            is_priority = any(p in nombre_id.lower().replace(" ", "_") for p in priority_sources)
-
-            channels_with_programs = set()
-            source_programmes = root.findall("programme")
-            for prog in source_programmes:
-                ch_ref = prog.get("channel")
-                if ch_ref:
-                    channels_with_programs.add(ch_ref)
-
-            for channel in root.findall("channel"):
-                channel_id = channel.get("id")
-                if not channel_id:
-                    continue
-
-                has_logo = channel.find("icon") is not None
-                has_prog = channel_id in channels_with_programs
-
-                if channel_id not in channels_dict:
-                    channels_dict[channel_id] = {
-                        'element': channel,
-                        'has_prog': has_prog,
-                        'has_logo': has_logo,
-                        'is_priority': is_priority
-                    }
-                else:
-                    existing = channels_dict[channel_id]
-                    if is_priority and not existing['is_priority']:
-                        channels_dict[channel_id] = {
-                            'element': channel,
-                            'has_prog': has_prog or existing['has_prog'],
-                            'has_logo': has_logo or existing['has_logo'],
-                            'is_priority': True
-                        }
-                    else:
-                        if not existing['has_logo'] and has_logo:
-                            existing['element'] = channel
-                            existing['has_logo'] = True
-                        if not existing['has_prog'] and has_prog:
-                            existing['has_prog'] = True
-
-            for programme in source_programmes:
-                ch_ref = programme.get("channel")
-                if ch_ref in channels_dict:
-                    programmes_list.append(programme)
-
-        except Exception as e:
-            print(f"⚠️ Error al parsear {archivo}: {e}")
-
-    root_final = ET.Element("tv")
-    for channel_id, data in channels_dict.items():
-        root_final.append(data['element'])
+            elementos_validos.append(child)
+            
+    except Exception as e:
+        print(f"Error procesando la fuente {url_o_archivo}: {e}")
         
-    for programme in programmes_list:
-        root_final.append(programme)
+    return elementos_validos
 
-    tree_final = ET.ElementTree(root_final)
-    tree_final.write(output_path, encoding="utf-8", xml_declaration=True)
-    print(f"✅ ¡Guía unificada inteligente generada con éxito en: {output_path}!")
-    print(f"📊 Total resultante: {len(channels_dict)} canales y {len(programmes_list)} programas.")
+def main():
+    print("--- INICIANDO FUSIÓN Y FILTRADO INTELIGENTE DE EPG ---")
 
-def limpiar_temporales():
-    if os.path.exists(TEMP_DIR):
-        shutil.rmtree(TEMP_DIR)
+    # ==========================================
+    # 1. GENERAR epg-elgato.xml (Basado en iptv-org / latam.xml)
+    # ==========================================
+    print("Procesando fuentes de iptv-org (latam.xml)...")
+    elementos_iptv = procesar_xml_desde_fuente("latam.xml", es_url=False)
+    
+    root_elgato = ET.Element("tv")
+    for elem in elementos_iptv:
+        root_elgato.append(elem)
+        
+    tree_elgato = ET.ElementTree(root_elgato)
+    tree_elgato.write("guia_final_unificada.xml", encoding="utf-8", xml_declaration=True)
+    # Nota: El workflow actual se encarga de renombrarlo/comprimirlo a epg-elgato.xml.gz a partir de latam.xml o este archivo.
+
+
+    # ==========================================
+    # 2. GENERAR strong8k.xml (Ferteque + Strong8k + Koala-Strong, sin open-epg)
+    # ==========================================
+    print("Procesando fuentes de strong8k / ferteque...")
+    root_strong = ET.Element("tv")
+    
+    for url in FUENTES_STRONG8K:
+        elementos_fuente = procesar_xml_desde_fuente(url, es_url=True)
+        for elem in elementos_fuente:
+            root_strong.append(elem)
+            
+    tree_strong = ET.ElementTree(root_strong)
+    tree_strong.write("strong8k.xml", encoding="utf-8", xml_declaration=True)
+    print("Archivo strong8k.xml generado y filtrado con éxito.")
 
 if __name__ == "__main__":
-    preparar_entorno()
-    xmls = descargar_y_descomprimir()
-    if xmls:
-        fusionar_xmltv_inteligente(xmls, OUTPUT_FILE)
-        limpiar_temporales()
-    else:
-        print("❌ No se pudieron descargar fuentes EPG válidas.")
+    main()
